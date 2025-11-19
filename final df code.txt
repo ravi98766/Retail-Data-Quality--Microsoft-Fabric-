@@ -1,0 +1,33 @@
+df_pregold=
+=order.join(returns, 
+on= col("o.OrderID")==col("r.ProductName"), how="left")
+.join(inventory, 
+on=col("o.ProductName")==col("i.ProductName"),how="left")
+.select(
+col("o.ProductName").alias("ProductName"),
+col("o.OrderID").alias("OrderID"),
+col("o.CustomerID").alias("CustomerID"),
+col("o.OrderAmount").alias("OrdeAmount"),
+col("i.Stock").alias("Stock"),
+col("i.CostPrice").alias("CostPrice"),
+col("r.ReturnID").alias("ReturnID"),
+)
+
+df_gold= 
+df_pregold.groupby("ProductName")
+.agg(
+        count("OrderID").alias("Total_Orders"),
+        countDistinct("CustomerID").alias("Unique_Customers"),
+        count("ReturnID").alias("Total_Returns"),
+        round((count("ReturnID") / count("OrderID")) * 100, 2).alias("Return_Rate_%"),
+        round(sum("OrderAmount"), 2).alias("Total_Revenue"),
+        round(avg("OrderAmount"), 2).alias("Avg_Order_Value"),
+        sum("Stock").alias("Total_Stock"),
+        round(avg("CostPrice"), 2).alias("Avg_Cost"),
+        round(sum("OrderAmount") - (sum("Stock") * avg("CostPrice")), 2).alias("Net_Profit")
+    )
+)
+
+df_kpi = (
+    df_enriched.groupBy("ProductName")
+   
