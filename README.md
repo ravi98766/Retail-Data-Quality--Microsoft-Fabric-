@@ -165,16 +165,27 @@ orders = spark.table("order_bronze")
 
 orders_df = (
     orders
+    
     .withColumnRenamed("Order_ID", "OrderID")
+    
     .withColumnRenamed("cust_id", "CustomerID")
+    
     .withColumnRenamed("Product_Name", "ProductName")
+    
     .withColumnRenamed("Qty", "Quantity")
+    
     .withColumnRenamed("Order_Date", "OrderDate")
+    
     .withColumnRenamed("Order_Amount$", "OrderAmount")
+    
     .withColumnRenamed("Delivery_Status", "DeliveryStatus")
+    
     .withColumnRenamed("Payment_Mode", "PaymentMode")
+    
     .withColumnRenamed("Ship_Address", "ShipAddress")
+    
     .withColumnRenamed("Promo_Code", "PromoCode")
+    
     .withColumnRenamed("Feedback_Score", "FeedbackScore")
     
     # Quantity cleanup
@@ -252,8 +263,11 @@ inventory = spark.table("inventory_bronze")
 
 inventory_new_df = (
     inventory
+    
     .withColumnRenamed("productName","ProductName")
+    
     .withColumnRenamed("last_stocked","lastStocked")
+    
     .withColumnRenamed("cost_price","CostPrice")
 
     # Stock cleanup
