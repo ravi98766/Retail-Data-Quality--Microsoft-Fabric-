@@ -99,11 +99,14 @@ This notebook handles ingestion from CSV, JSON, Excel, applies Silver-level clea
 ________________________________________
 🥉 BRONZE LAYER — RAW INGESTION
 ### CSV → DataFrame (Orders)
+```bash
 df_orders = spark.read.csv(
     "abfss://e0cf1801-1533-430a-8805-b23abd9dafae@onelake.dfs.fabric.microsoft.com/3f0d51ed-691b-49c1-983f-b4042e721365/Files/BRONZE/orders_data.csv"
 )
+```
 ________________________________________
 ### JSON → DataFrame (Inventory)
+```bash
 df_inventory = (
     spark.read
         .option("multiline", "true")
@@ -111,28 +114,32 @@ df_inventory = (
             "abfss://e0cf1801-1533-430a-8805-b23abd9dafae@onelake.dfs.fabric.microsoft.com/3f0d51ed-691b-49c1-983f-b4042e721365/Files/BRONZE/inventory_data.json"
         )
 )
+```
 ________________________________________
 ### Excel → DataFrame (Returns, converted to Parquet)
+```bash
 df_return = spark.read.parquet(
     "abfss://e0cf1801-1533-430a-8805-b23abd9dafae@onelake.dfs.fabric.microsoft.com/3f0d51ed-691b-49c1-983f-b4042e721365/Files/BRONZE/returns_data.xlsx.parquet"
 )
+```
 ________________________________________
 ### Preview Raw Data
+```bash
 display(df_return.limit(5))
-
 display(df_inventory.limit(5))
-
 display(df_orders.limit(5))
+```
 ________________________________________
 ### Handling First Row as Header
-Extract headers:
+```bash
+***Extract headers:***
 
 orders_header = [str(c).strip() for c in df_orders.first()]
-
 returns_header = [str(c).strip() for c in df_return.first()]
 
-Apply headers:
+***Apply headers***
 
+```bash
 Orders
 df_orders = (
     df_orders.rdd.zipWithIndex()
@@ -148,44 +155,32 @@ df_returns = (
     .map(lambda x: x[0])
     .toDF(returns_header)
 )
+```
 ________________________________________
 ### Save Bronze Tables
-
+```bash
 df_orders.write.format("delta").mode("overwrite").saveAsTable("order_bronze")
-
 df_return.write.format("delta").mode("overwrite").saveAsTable("return_bronze")
-
 df_inventory.write.format("delta").mode("overwrite").saveAsTable("inventory_bronze")
+```
 ________________________________________
-🥈 SILVER LAYER — CLEANING & STANDARDIZATION
+🥈***SILVER LAYER — CLEANING & STANDARDIZATION***
 ________________________________________
 ### SILVER ORDERS
-
+```bash
 orders = spark.table("order_bronze")
-
 orders_df = (
     orders
-    
     .withColumnRenamed("Order_ID", "OrderID")
-    
     .withColumnRenamed("cust_id", "CustomerID")
-    
     .withColumnRenamed("Product_Name", "ProductName")
-    
     .withColumnRenamed("Qty", "Quantity")
-    
     .withColumnRenamed("Order_Date", "OrderDate")
-    
     .withColumnRenamed("Order_Amount$", "OrderAmount")
-    
     .withColumnRenamed("Delivery_Status", "DeliveryStatus")
-    
     .withColumnRenamed("Payment_Mode", "PaymentMode")
-    
     .withColumnRenamed("Ship_Address", "ShipAddress")
-    
     .withColumnRenamed("Promo_Code", "PromoCode")
-    
     .withColumnRenamed("Feedback_Score", "FeedbackScore")
     
     # Quantity cleanup
@@ -255,10 +250,11 @@ orders_df = (
 )
 
 orders_df.write.format("delta").mode("overwrite").saveAsTable("silver_orders")
+```
 ________________________________________
 
 ### SILVER INVENTORY
-
+```bash
 inventory = spark.table("inventory_bronze")
 
 inventory_new_df = (
@@ -304,10 +300,11 @@ inventory_new_df = (
 )
 
 inventory_new_df.write.format("delta").mode("overwrite").saveAsTable("silver_inventory")
+```
 ________________________________________
 
 ### SILVER RETURNS
-
+```bash
 return_df = spark.table("return_bronze")
 
 returns_header = [str(c).strip() for c in return_df.first()]
@@ -357,25 +354,20 @@ returns_df_new = (
 )
 
 returns_df_new.write.format("delta").mode("overwrite").saveAsTable("silver_return")
+```
 ________________________________________
-🥇 GOLD LAYER — BUSINESS AGGREGATIONS
+🥇***GOLD LAYER — BUSINESS AGGREGATIONS***
 ________________________________________
-Join all silver tables
-
+***Join all silver tables***
+```bash
 order = spark.table("silver_orders").alias("o")
-
 returns = spark.table("silver_return").alias("r")
-
 inventory = spark.table("silver_inventory").alias("i")
 
 df_pregold = 
-
-(
-    order
+(order
           .join(returns, col("o.OrderID") == col("r.OrderID"), "left")
-    
          .join(inventory, col("o.ProductName") == col("i.ProductName"), "left")
-         
          .select(
              col("o.ProductName"),
              col("o.OrderID"),
@@ -389,27 +381,16 @@ df_pregold =
 ________________________________________
 Gold aggregations
 df_gold = (
-
     df_pregold.groupBy("ProductName")
-    
     .agg(
-    
         count("OrderID").alias("Total_Orders"),
-        
         countDistinct("CustomerID").alias("Unique_Customers"),
-        
         count("ReturnID").alias("Total_Returns"),
-        
         round((count("ReturnID") / count("OrderID")) * 100, 2).alias("Return_Rate%"),
-        
         round(sum("OrderAmount"), 2).alias("Total_Revenue"),
-        
         round(avg("OrderAmount"), 2).alias("Avg_Order_Value"),
-        
         sum("Stock").alias("Total_Stock"),
-        
         round(avg("CostPrice"), 2).alias("Avg_Cost"),
-        
         round(sum("OrderAmount") - (sum("Stock") * avg("CostPrice")), 2).alias("Net_Profit")
     )
 )
@@ -418,7 +399,7 @@ Save Gold Table
 
 df_gold.write.format("delta").mode("overwrite").saveAsTable("gold_retail")
 ________________________________________
-
+```
 
 
 
